@@ -1,0 +1,15 @@
+# I just needed to get rid of the null values in the datasets,I not only did this for the black owned businesses tulsa dataset, but also the other datasets I collected from the BWDC.
+
+import pandas as pd
+
+# Load your dataset
+df = pd.read_csv('black_owned_businesses_tulsa.csv')
+
+# Drop rows with null values
+df = df.dropna()
+
+# Drop columns with all zeros
+df = df.loc[:, (df != 0).any(axis=0)]
+
+# Display the cleaned dataset
+print(df)
