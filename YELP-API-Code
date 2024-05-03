@@ -1,0 +1,143 @@
+import requests
+
+# Defines Yelp API endpoint and API key
+api_endpoint = 'https://api.yelp.com/v3/businesses/search'
+api_key = 'YELP_API_KEY'
+
+# Define parameters for the API request
+params = {
+    'location': 'Tulsa, OK',
+    'categories': 'blackowned',
+    'limit': 200
+}
+
+# Set the API key in the headers
+headers = {
+    'Authorization': f'Bearer {api_key}'
+}
+
+# Make the API request
+response = requests.get(api_endpoint, headers=headers, params=params)
+
+# Check if the request was successful
+if response.status_code == 200:
+    # Parse the JSON response
+    data = response.json()
+    total_count = data['total']
+    print(f'Total Black-Owned Businesses in Tulsa, OK: {total_count}')
+else:
+    print('Error occurred while fetching data from Yelp API')
+
+
+
+
+
+
+# The following code (after this message) is to get the output of the data using a csv file:
+# It also uses the time delay to give the program time in between each request in order to not overload server. 
+# Because data was clean, there wasn't a huge need for agregates to clean it up.
+
+
+
+
+
+
+import requests
+import csv
+import time
+from google.colab import drive
+
+# Mount Google Drive
+drive.mount('/content/drive')
+
+# Define Yelp API endpoint and API key
+api_endpoint = 'https://api.yelp.com/v3/businesses/search'
+api_key = 'YELP_API_KEY'
+
+# Define parameters for the first API request to get total count
+params_total_count = {
+    'location': 'Tulsa, OK',
+    'categories': 'blackowned',
+    'limit': 1,  # Only need one result to get total count
+    'offset': 1000  # Start from the 1001st result
+}
+
+# Set the API key in the headers
+headers = {
+    'Authorization': f'Bearer {api_key}'
+}
+
+# Make the API request to get total count
+response_total_count = requests.get(api_endpoint, headers=headers, params=params_total_count)
+
+# Check if the request was successful
+if response_total_count.status_code == 200:
+    # Parse the JSON response to get total count
+    data_total_count = response_total_count.json()
+    total_count = data_total_count['total']
+    print(f'Total Black-Owned Businesses in Tulsa, OK (after offset): {total_count}')
+
+    # Define parameters for subsequent API requests with pagination
+    limit_per_page = 50  # Limit per page
+    total_pages = (total_count + limit_per_page - 1) // limit_per_page  # Calculate total pages needed
+
+    # Initialize an empty list to store all businesses
+    all_businesses = []
+
+    # Loop through each page and make API requests with delay
+    for page in range(total_pages):
+        offset = (page * limit_per_page) + 1000  # Calculate offset for each page
+
+        params_pagination = {
+            'location': 'Tulsa, OK',
+            'categories': 'blackowned',
+            'limit': limit_per_page,
+            'offset': offset
+        }
+
+        # Make the API request for each page
+        response_pagination = requests.get(api_endpoint, headers=headers, params=params_pagination)
+
+        # Check if the request was successful
+        if response_pagination.status_code == 200:
+            # Parse the JSON response
+            data_pagination = response_pagination.json()
+            businesses = data_pagination['businesses']
+
+            # Add businesses to the list
+            all_businesses.extend(businesses)
+
+        else:
+            print(f'Error occurred while fetching data from Yelp API (Page {page+1}): {response_pagination.status_code} - {response_pagination.text}')
+            break  # Exit the loop on error
+
+        # Introduce a short delay between requests (e.g., 1 second)
+        time.sleep(1)
+
+    # Print fetched data for debugging (optional)
+    print(all_businesses)
+
+    # Define CSV file path in Google Drive
+    csv_file_path = '/content/drive/My Drive/black_owned_businesses_tulsa_offset_pagination.csv'
+
+    # Write data to CSV file
+    with open(csv_file_path, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Name', 'Category', 'Rating', 'Review Count', 'Address', 'Phone', 'Website'])
+
+        for business in all_businesses:
+            # Extract relevant information
+            name = business['name']
+            categories = ', '.join([category['title'] for category in business['categories']])
+            rating = business.get('rating', 'N/A')
+            review_count = business.get('review_count', 'N/A')
+            address = ', '.join(business['location']['display_address'])
+            phone = business.get('phone', 'N/A')
+            website = business.get('url', 'N/A')
+
+            # Write data to CSV row
+            writer.writerow([name, categories, rating, review_count, address, phone, website])
+
+    print(f'Data written to {csv_file_path}')
+else:
+    print(f'Error occurred while fetching data from Yelp API (Total Count): {response_total_count.status_code} - {response_total_count.text}')
