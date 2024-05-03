@@ -2,3 +2,4 @@ requests
 csv
 time
 google.colab to drive
+pandas
